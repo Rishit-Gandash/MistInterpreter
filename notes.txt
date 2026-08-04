@@ -1,0 +1,7 @@
+LEXER -> convert text file into an array with the head pointer which can go anywhere
+
+PARSER -> analysis of the lexed stuff
+
+no compound bools
+
+gotos are powerful
