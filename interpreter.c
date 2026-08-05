@@ -160,7 +160,7 @@ int is_alpha(char ch) {
 
 Token* next_token(Lexer* lexer) {
     skip_ws_lexer(lexer);
-    char ch = peek_lexer(lexer);
+    char ch = bump_lexer(lexer);
     Token* token = calloc(1, sizeof(Token));
 
 
@@ -171,8 +171,7 @@ Token* next_token(Lexer* lexer) {
 
 
     else if(is_digit(ch)){
-        int i = (int)(ch - '0');
-        ch = bump_lexer(lexer);
+        int i = 0;
         while(is_digit(ch)) {
             i = i*10 + (int)(ch - '0');
             ch = bump_lexer(lexer);
@@ -186,7 +185,6 @@ Token* next_token(Lexer* lexer) {
         char* s = calloc(1, 256);
         int curr = 0;
         s[curr] = ch;
-        ch = bump_lexer(lexer);
         while(is_alpha(ch) || ch == '_') {
             s[curr] = ch;
             ch = bump_lexer(lexer);
@@ -285,7 +283,7 @@ void print_lexer(Lexer* lexer){
 
 int main() {
 
-    Lexer* lexer = new_lexer("a = 5");
+    Lexer* lexer = new_lexer("a = 56566");
     print_lexer(lexer);
 }
 
