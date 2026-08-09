@@ -76,7 +76,7 @@ typedef struct e {
     union {
         int i;
         int b;
-        char* string;
+        char* var;
         union {UnaryOp unaryOp; Expr* expr;} unary;
         union {Expr* lexpr; BinaryOp binaryOp; Expr* rexpr;} binary;
     } data;
@@ -138,7 +138,7 @@ char peek_lexer(Lexer* lexer){
 
 char bump_lexer(Lexer* lexer) {
     char c = peek_lexer(lexer); 
-    lexer->pos++;
+    lexer->pos+=1;
     return c;
 }
 
@@ -160,7 +160,7 @@ int is_alpha(char ch) {
 
 Token* next_token(Lexer* lexer) {
     skip_ws_lexer(lexer);
-    char ch = bump_lexer(lexer);
+    char ch = peek_lexer(lexer);
     Token* token = calloc(1, sizeof(Token));
 
 
@@ -172,9 +172,9 @@ Token* next_token(Lexer* lexer) {
 
     else if(is_digit(ch)){
         int i = 0;
-        while(is_digit(ch)) {
-            i = i*10 + (int)(ch - '0');
+        while(is_digit(peek_lexer(lexer))) {
             ch = bump_lexer(lexer);
+            i = i*10 + (int)(ch - '0');
         }
         token->type = TOKEN_INT;
         token->data.i = i;
@@ -184,10 +184,9 @@ Token* next_token(Lexer* lexer) {
     else if(is_alpha(ch) || ch == '_') { 
         char* s = calloc(1, 256);
         int curr = 0;
-        s[curr] = ch;
-        while(is_alpha(ch) || ch == '_') {
-            s[curr] = ch;
+        while(is_alpha(peek_lexer(lexer)) || peek_lexer(lexer) == '_' || is_digit(peek_lexer(lexer))) {
             ch = bump_lexer(lexer);
+            s[curr] = ch;
             curr++;
         }
         if(strcmp("true", s) == 0){
@@ -213,32 +212,42 @@ Token* next_token(Lexer* lexer) {
     switch (ch) {
         case '(':
             token->type = TOKEN_LPAREN;
+            bump_lexer(lexer);
             return token;
         case ')':
             token->type = TOKEN_RPAREN;
+            bump_lexer(lexer);
             return token;
         case '+':
         case '*':
         case '-':
         case '/':
-            token->type = TOKEN_OP;
-            char* op  = &ch;
-            token->data.op = op;
-            return token;
+            // token->type = TOKEN_OP;
+            // char* op  = &ch;
+            // token->data.op = op;
+            // bump_lexer(lexer);
+            // return token;
         case '=':
         case '!':
         case '<':
         case '>':
         {
+            bump_lexer(lexer);
             char c = peek_lexer(lexer);
             if(c == '='){
-                char* op = &ch;
+                char* op = calloc(3, sizeof(char)); // op + null term
+                op[0] = ch;
                 op[1] = c;
+                op[2] = '\0';
                 token->type = TOKEN_OP;
                 token->data.op = op;
+                bump_lexer(lexer);
             } else {
+                char* op = calloc(2, sizeof(char)); // op + null term
+                op[0] = ch;
+                op[1] = '\0';
                 token->type = TOKEN_OP;
-                token->data.op = &ch;
+                token->data.op = op;
             }
             return token;
         }
@@ -247,13 +256,67 @@ Token* next_token(Lexer* lexer) {
             printf("ERR: unknown char");
             exit(EXIT_FAILURE);
     }
+}
 
+
+typedef struct {
+    Lexer* lexer;
+    Token* current;
+} Parser;
+
+Parser* new_parser(char* src) {
+    Parser* parser = calloc(1, sizeof(Parser));
+    Lexer* lexer = new_lexer(src);
+    Token* token = next_token(lexer);
+    return parser;
+}
+
+void bump_parser(Parser* parser) {
+    parser->current = next_token(parser->lexer);
+}
+
+Expr* parse_precedence(Parser* parser, int min_bp) {
+    Token *lhs = parser->current;
+    switch (lhs->type) {
+        case TOKEN_INT: {
+            int x = lhs->data.i;
+            bump_parser(parser);
+            Expr *expr = calloc(1, sizeof(Expr));
+            expr->type = EXPR_INT;
+            expr->data.i = x;
+            return expr;
+        }
+        case TOKEN_BOOL: {
+            int x = lhs->data.b;
+            bump_parser(parser);
+            Expr *expr = calloc(1, sizeof(Expr));
+            expr->type = EXPR_BOOL;
+            expr->data.b = x;
+            return expr;
+        }
+        case TOKEN_IDENT: {
+            char* ident = lhs->data.ident;
+            bump_parser(parser);
+            Expr *expr = calloc(1, sizeof(Expr));
+            expr->type = EXPR_VAR;
+            expr->data.var = ident;
+            return expr;
+        }
+        case TOKEN_OP: {
+            char* ident = lhs->data.ident;
+            bump_parser(parser);
+            Expr *expr = calloc(1, sizeof(Expr));
+            expr->type = EXPR_VAR;
+            expr->data.var = ident;
+            return expr;
+        }
+    }
 }
 
 void print_lexer(Lexer* lexer){
     Token* token;
-    while(peek_lexer(lexer) != '\0') {
-        token = next_token(lexer);
+    token = next_token(lexer);
+    while(token->type != TOKEN_EOF) {
         switch(token->type){
             case TOKEN_INT:
                 printf("TOKEN_INT: %d\n", token->data.i);
@@ -265,7 +328,7 @@ void print_lexer(Lexer* lexer){
                 printf("TOKEN_BOOL\n");
                 break;
             case TOKEN_OP:
-                printf("TOKEN_OP\n");
+                printf("TOKEN_OP: %s\n", token->data.op);
                 break;
             case TOKEN_LPAREN:
                 printf("TOKEN_LPAREN\n");
@@ -277,13 +340,13 @@ void print_lexer(Lexer* lexer){
                 printf("EOF???\n");
                 break;
         }
-        bump_lexer(lexer);
+        token = next_token(lexer);
     }
 }
 
-int main() {
-
-    Lexer* lexer = new_lexer("a = 56566");
+int main() { 
+    Lexer* lexer = new_lexer("a = (3*5)");
     print_lexer(lexer);
+    return 0;
 }
 
