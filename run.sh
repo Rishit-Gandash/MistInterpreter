@@ -1,2 +1,3 @@
 #!/bin/bash
-gcc -Wextra -ggdb -Wall interpreter.c -o interpreter && ./interpreter
+mkdir -p build &&
+gcc -Wextra -ggdb -Wall interpreter.c -o build/binter && ./build/binter

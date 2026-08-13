@@ -1,7 +1,10 @@
-LEXER -> convert text file into an array with the head pointer which can go anywhere
+LEXER -> Converts text into recognizable tokens
 
-PARSER -> analysis of the lexed stuff
+
+PRATT PARSER -> Contains a lexer, which sequentially calls the next token, until it hits an expression, then evaluates expression, PER PRECEDENCE
+
 
 no compound bools
+
 
 gotos are powerful

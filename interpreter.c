@@ -118,7 +118,6 @@ typedef struct {
 typedef struct {
     int pos;
     int len;
-    char* src;
     char chars[];
 } Lexer;
 
@@ -126,11 +125,11 @@ Lexer* new_lexer(char* src) {
     int len = strlen(src);
     Lexer* lexer = malloc(sizeof(Lexer) + len + 1);
     lexer->pos = 0;
-    lexer->src = src;
     lexer->len = len;
     memcpy(lexer->chars, src, len + 1);
     return lexer;
 }
+
 
 char peek_lexer(Lexer* lexer){
     return lexer->chars[lexer->pos];
@@ -164,7 +163,7 @@ Token* next_token(Lexer* lexer) {
     Token* token = calloc(1, sizeof(Token));
 
 
-    if(ch == EOF) {
+    if(ch == EOF || ch == '\0') {
         token->type = TOKEN_EOF; 
         return token;
     }
@@ -268,7 +267,19 @@ Parser* new_parser(char* src) {
     Parser* parser = calloc(1, sizeof(Parser));
     Lexer* lexer = new_lexer(src);
     Token* token = next_token(lexer);
+    parser->lexer = lexer;
+    parser->current = token;
     return parser;
+}
+
+int delete_parser(Parser* parser) {
+    if(!parser) {
+        return -1;
+    }
+    free(parser->lexer);
+    free(parser->current);
+    free(parser);
+    return 0;
 }
 
 void bump_parser(Parser* parser) {
@@ -313,40 +324,9 @@ Expr* parse_precedence(Parser* parser, int min_bp) {
     }
 }
 
-void print_lexer(Lexer* lexer){
-    Token* token;
-    token = next_token(lexer);
-    while(token->type != TOKEN_EOF) {
-        switch(token->type){
-            case TOKEN_INT:
-                printf("TOKEN_INT: %d\n", token->data.i);
-                break;
-            case TOKEN_IDENT:
-                printf("TOKEN_IDENT: %s\n", token->data.ident);
-                break;
-            case TOKEN_BOOL:
-                printf("TOKEN_BOOL\n");
-                break;
-            case TOKEN_OP:
-                printf("TOKEN_OP: %s\n", token->data.op);
-                break;
-            case TOKEN_LPAREN:
-                printf("TOKEN_LPAREN\n");
-                break;
-            case TOKEN_RPAREN:
-                printf("TOKEN_RPAREN\n");
-                break;
-            case TOKEN_EOF:
-                printf("EOF???\n");
-                break;
-        }
-        token = next_token(lexer);
-    }
-}
-
-int main() { 
-    Lexer* lexer = new_lexer("a = (3*5)");
-    print_lexer(lexer);
-    return 0;
-}
+// int main() { 
+//     Lexer* lexer = new_lexer("a(3*5)");
+//     print_lexer(lexer);
+//     return 0;
+// }
 
