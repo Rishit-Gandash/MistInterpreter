@@ -82,6 +82,10 @@ typedef struct e {
     } data;
 } Expr;
 
+// Instead of using an AST structure, we are using a recursive expression struct
+// which means that it contains other expressions (look at unary and
+// binary unions), also we will need to free the expression *recursively*
+
 
 // Statements
 
@@ -120,6 +124,9 @@ typedef struct {
     int len;
     char chars[];
 } Lexer;
+
+// Since we are simply assigning memory to the lexer struct,
+// a simple free is sufficient to completely destroy the lexer
 
 Lexer* new_lexer(char* src) {
     int len = strlen(src);
@@ -163,7 +170,7 @@ Token* next_token(Lexer* lexer) {
     Token* token = calloc(1, sizeof(Token));
 
 
-    if(ch == EOF || ch == '\0') {
+    if(ch == EOF || ch == '\0') { // null strings are added for the testing suite
         token->type = TOKEN_EOF; 
         return token;
     }
