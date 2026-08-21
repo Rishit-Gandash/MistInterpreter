@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -293,43 +294,149 @@ void bump_parser(Parser* parser) {
     parser->current = next_token(parser->lexer);
 }
 
+int evaluate_precedence(Token* token);
+Expr* parse_expr(Parser* parser);
+
+
+
 Expr* parse_precedence(Parser* parser, int min_bp) {
-    Token *lhs = parser->current;
-    switch (lhs->type) {
+    Expr* lhs;
+    Token *curr = parser->current;
+    switch (curr->type) {
         case TOKEN_INT: {
-            int x = lhs->data.i;
+            int x = curr->data.i;
             bump_parser(parser);
             Expr *expr = calloc(1, sizeof(Expr));
             expr->type = EXPR_INT;
             expr->data.i = x;
-            return expr;
+            lhs = expr;
+            break;
         }
         case TOKEN_BOOL: {
-            int x = lhs->data.b;
+            int x = curr->data.b;
             bump_parser(parser);
             Expr *expr = calloc(1, sizeof(Expr));
             expr->type = EXPR_BOOL;
             expr->data.b = x;
-            return expr;
+            lhs = expr;
+            break;
         }
         case TOKEN_IDENT: {
-            char* ident = lhs->data.ident;
+            char* ident = curr->data.ident;
             bump_parser(parser);
             Expr *expr = calloc(1, sizeof(Expr));
             expr->type = EXPR_VAR;
             expr->data.var = ident;
-            return expr;
+            lhs = expr;
+            break;
         }
         case TOKEN_OP: {
-            char* ident = lhs->data.ident;
-            bump_parser(parser);
             Expr *expr = calloc(1, sizeof(Expr));
-            expr->type = EXPR_VAR;
-            expr->data.var = ident;
-            return expr;
+            if(strcmp(curr->data.op, "-")) {
+                bump_parser(parser);
+                Expr* rhs = parse_precedence(parser, 4);
+                Expr *expr = calloc(1, sizeof(Expr));
+                expr->type = EXPR_UNARY;
+                expr->data.unary.unaryOp = UNARY_NEG;
+                expr->data.unary.expr = rhs;
+            } else if (strcmp(curr->data.op, "!")) {
+                bump_parser(parser);
+                Expr* rhs = parse_precedence(parser, 4);
+                Expr *expr = calloc(1, sizeof(Expr));
+                expr->type = EXPR_UNARY;
+                expr->data.unary.unaryOp = UNARY_NOT;
+                expr->data.unary.expr = rhs;
+            }
+            lhs = expr;
+            break;
+        }
+        case TOKEN_LPAREN: {
+            bump_parser(parser);
+            Expr* expr = parse_expr(parser);
+            if(parser->current->type != TOKEN_RPAREN){
+                printf("Unclosed Parentheses");
+                exit(EXIT_FAILURE);
+            }
+            bump_parser(parser); // WE bump parser since we know we are at a RPAREN token
+            lhs = expr;
+            break;
+        }
+        default: {
+            printf("Token type wasnt caught in the switch case");
+            exit(EXIT_FAILURE);
         }
     }
+
+
+    while(1) {
+        Token* op_token = NULL;
+        if(curr->type == TOKEN_OP) {
+            op_token = curr;
+        }
+        int bp = evaluate_precedence(op_token);
+        if(bp < min_bp) break;
+
+        BinaryOp op;
+        if(strcmp(op_token->data.op, "+") == 0) op = BINARY_ADD;
+        else if(strcmp(op_token->data.op, "-") == 0) op = BINARY_SUB;
+        else if(strcmp(op_token->data.op, "*") == 0) op = BINARY_MUL;
+        else if(strcmp(op_token->data.op, "/") == 0) op = BINARY_DIV;
+        else if(strcmp(op_token->data.op, "<") == 0) op = BINARY_LT;
+        else if(strcmp(op_token->data.op, "<=") == 0) op = BINARY_LE;
+        else if(strcmp(op_token->data.op, ">") == 0) op = BINARY_GT;
+        else if(strcmp(op_token->data.op, ">=") == 0) op = BINARY_GE;
+        else if(strcmp(op_token->data.op, "==") == 0) op = BINARY_EQ;
+        else if(strcmp(op_token->data.op, "!=") == 0) op = BINARY_NE;
+        else break;
+
+
+
+        bump_parser(parser);
+        Expr* rhs = parse_precedence(parser, bp + 1);
+        lhs->type = EXPR_BINARY;
+        lhs->data.binary.lexpr = lhs;
+        lhs->data.binary.rexpr = rhs;
+        lhs->data.binary.binaryOp = op;
+    }
+    return lhs;
 }
+
+int evaluate_precedence(Token* token) {
+    if(token == NULL){
+        return 1;
+    }
+    if(token->type != TOKEN_OP){
+        return 1;
+    }
+    if(
+        strcmp(token->data.op, "==") == 0 ||
+        strcmp(token->data.op, "!=") == 0 ||
+        strcmp(token->data.op, ">=") == 0 ||
+        strcmp(token->data.op, ">") == 0 ||
+        strcmp(token->data.op, "<=") == 0 ||
+        strcmp(token->data.op, "<") == 0
+    ) {
+        return 1;
+    } else if (
+        strcmp(token->data.op, "+") == 0 ||
+        strcmp(token->data.op, "-") == 0
+    ) {
+        return 2;
+    } else if (
+        strcmp(token->data.op, "*") == 0 ||
+        strcmp(token->data.op, "/") == 0
+    ) {
+        return 3;
+    } else {
+        printf("This code is never supposed to execute!!!");
+        exit(EXIT_FAILURE);
+    }
+}
+
+Expr* parse_expr(Parser* parser) {
+    return parse_precedence(parser, 0);
+};
+
 
 // int main() { 
 //     Lexer* lexer = new_lexer("a(3*5)");

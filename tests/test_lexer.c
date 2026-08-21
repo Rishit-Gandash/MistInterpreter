@@ -37,10 +37,11 @@ int main() {
         "((a+b=c))",
         "dfgsdfgbsdcvvbsdf_asdsdfsdfgbhsdfgsdf=aasdasdfvdcfhbdf_asdsdfgsdfg",
         "((a) + (b+c))",
-        "a*=a", // 5
+        "a = !false",
+        "a = -5", // 6
     };
 
-    for(int i = 0; i < 5; i++) {
+    for(int i = 0; i < 6; i++) {
         printf("----------%d CURRENT TEST CASE: %s----------\n", i, tests[i]); 
         Lexer* lexer = new_lexer(tests[i]);
         print_lexer(new_lexer(tests[i]));
