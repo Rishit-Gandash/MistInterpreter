@@ -352,6 +352,7 @@ Expr* parse_precedence(Parser* parser, int min_bp) {
         }
         case TOKEN_LPAREN: {
             bump_parser(parser);
+
             Expr* expr = parse_expr(parser);
             if(parser->current->type != TOKEN_RPAREN){
                 printf("Unclosed Parentheses");
@@ -388,8 +389,6 @@ Expr* parse_precedence(Parser* parser, int min_bp) {
         else if(strcmp(op_token->data.op, "==") == 0) op = BINARY_EQ;
         else if(strcmp(op_token->data.op, "!=") == 0) op = BINARY_NE;
         else break;
-
-
 
         bump_parser(parser);
         Expr* rhs = parse_precedence(parser, bp + 1);
