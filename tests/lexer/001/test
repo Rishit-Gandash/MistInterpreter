@@ -1,0 +1,3 @@
+a = b + c
+// expect
+{IDENT:"a",OP:"=",IDENT:"b",OP:"+",IDENT:"c",}
