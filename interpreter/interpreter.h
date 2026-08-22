@@ -43,6 +43,8 @@ typedef enum {
 } ExprType;
 
 typedef struct e Expr;
+typedef struct {UnaryOp unaryOp; Expr* expr;} unary;
+typedef struct {Expr* lexpr; BinaryOp binaryOp; Expr* rexpr;} binary;
 
 typedef struct e {
     ExprType type;
@@ -50,8 +52,8 @@ typedef struct e {
         int i;
         int b;
         char* var;
-        union {UnaryOp unaryOp; Expr* expr;} unary;
-        union {Expr* lexpr; BinaryOp binaryOp; Expr* rexpr;} binary;
+        unary* unary;
+        binary* binary;
     } data;
 } Expr;
 
@@ -107,7 +109,10 @@ typedef struct {
     Token* current;
 } Parser;
 
-Parser* new_parser(Lexer* lexer);
+Parser* new_parser(char* src);
 Expr* parse_expr(Parser* parser);
 void free_parser(Parser* parser);
+
+
+
 #endif //INTERPRETER_H_

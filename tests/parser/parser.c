@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
         usage();
         exit(EXIT_FAILURE);
     }
-    Parser* parser = new_parser(new_lexer(argv[argc - 1]));
+    Parser* parser = new_parser(argv[argc - 1]);
     parse_expr(parser);
     free_parser(parser);
     return 0;
