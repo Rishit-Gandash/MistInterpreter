@@ -107,6 +107,7 @@ typedef struct {
     Token* current;
 } Parser;
 
-Parser* new_parser(char* src);
-int delete_parser(Parser* parser);
+Parser* new_parser(Lexer* lexer);
+Expr* parse_expr(Parser* parser);
+void free_parser(Parser* parser);
 #endif //INTERPRETER_H_

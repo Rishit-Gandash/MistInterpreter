@@ -174,34 +174,61 @@ Token* next_token(Lexer* lexer) {
     }
 }
 
-Parser* new_parser(char* src) {
+Parser* new_parser(Lexer* lexer) {
     Parser* parser = calloc(1, sizeof(Parser));
-    Lexer* lexer = new_lexer(src);
     Token* token = next_token(lexer);
     parser->lexer = lexer;
     parser->current = token;
     return parser;
 }
 
-int delete_parser(Parser* parser) {
-    if(!parser) {
-        return -1;
+void free_parser(Parser* parser) {
+    if(parser == NULL){
+        printf("ERROR: Tried freeing parser but failed..\n");
+        exit(EXIT_FAILURE);
     }
     free(parser->lexer);
     free(parser->current);
     free(parser);
-    return 0;
 }
 
 void bump_parser(Parser* parser) {
     parser->current = next_token(parser->lexer);
 }
 
-int evaluate_precedence(Token* token);
+int evaluate_precedence(Token* token) {
+    if(token == NULL){
+        return 1;
+    }
+    if(token->type != TOKEN_OP){
+        return 1;
+    }
+    if(
+        strcmp(token->data.op, "==") == 0 ||
+        strcmp(token->data.op, "!=") == 0 ||
+        strcmp(token->data.op, ">=") == 0 ||
+        strcmp(token->data.op, ">") == 0 ||
+        strcmp(token->data.op, "<=") == 0 ||
+        strcmp(token->data.op, "<") == 0
+    ) {
+        return 1;
+    } else if (
+        strcmp(token->data.op, "+") == 0 ||
+        strcmp(token->data.op, "-") == 0
+    ) {
+        return 2;
+    } else if (
+        strcmp(token->data.op, "*") == 0 ||
+        strcmp(token->data.op, "/") == 0
+    ) {
+        return 3;
+    } else {
+        printf("This code is never supposed to execute!!!");
+        exit(EXIT_FAILURE);
+    }
+}
+
 Expr* parse_expr(Parser* parser);
-
-
-
 Expr* parse_precedence(Parser* parser, int min_bp) {
     Expr* lhs;
     Token *curr = parser->current;
@@ -301,38 +328,6 @@ Expr* parse_precedence(Parser* parser, int min_bp) {
         lhs->data.binary.binaryOp = op;
     }
     return lhs;
-}
-
-int evaluate_precedence(Token* token) {
-    if(token == NULL){
-        return 1;
-    }
-    if(token->type != TOKEN_OP){
-        return 1;
-    }
-    if(
-        strcmp(token->data.op, "==") == 0 ||
-        strcmp(token->data.op, "!=") == 0 ||
-        strcmp(token->data.op, ">=") == 0 ||
-        strcmp(token->data.op, ">") == 0 ||
-        strcmp(token->data.op, "<=") == 0 ||
-        strcmp(token->data.op, "<") == 0
-    ) {
-        return 1;
-    } else if (
-        strcmp(token->data.op, "+") == 0 ||
-        strcmp(token->data.op, "-") == 0
-    ) {
-        return 2;
-    } else if (
-        strcmp(token->data.op, "*") == 0 ||
-        strcmp(token->data.op, "/") == 0
-    ) {
-        return 3;
-    } else {
-        printf("This code is never supposed to execute!!!");
-        exit(EXIT_FAILURE);
-    }
 }
 
 Expr* parse_expr(Parser* parser) {

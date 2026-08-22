@@ -38,26 +38,32 @@ def get_files(dir):
 def parse_test(name):
     test_case = ""
     expected = ""
+    # TODO: extend this to be able to support multiline stuff
     with open(name) as f:
         test_case += f.readline().rstrip("\r\n")
         f.readline() # skip expect
         expected += f.readline().rstrip("\r\n")
     return test_case, expected
 
-def run_lexer_test(f):
-    return subprocess.run(['./build/lexer', f], stdout=subprocess.PIPE)
+def run_test(name, f):
+    return subprocess.run([name, f], stdout=subprocess.PIPE)
+
+def get_exec_name(path):
+    return os.path.split(path)[-1]
 
 def clean_output(str):
     str = str.decode('UTF-8')
     str = str.split()
     return ''.join(str)
 
-def text_lexer():
-    files = get_files("./tests/lexer")
+def run_tests(dir):
+    print(f"======== {get_exec_name(dir)} ========")
+    exec_path = os.path.join("build", get_exec_name(dir)) #test dir must be the same name as the executable
+    files = get_files(dir)
     passed = 0
     for f in files:
         t, e = parse_test(f)
-        o = run_lexer_test(t)
+        o = run_test(exec_path, t)
         if o.returncode == 0:
             out = clean_output(o.stdout)
             if (out == e):
@@ -69,4 +75,5 @@ def text_lexer():
             print(f"{bcolors.RED + fcolors.WHITE}Program returned with {o.returncode}.{bcolors.ENDC}")
     print(f"Tests: {passed}/{len(files)}")
 
-text_lexer()
+run_tests("./tests/lexer")
+run_tests("./tests/parser")
