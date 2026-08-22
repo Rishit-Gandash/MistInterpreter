@@ -1,0 +1,3 @@
+dfgsdfgbsdcvvbsdf_asdsdfsdfgbhsdfgsdf=aasdasdfvdcfhbdf_asdsdfgsdfg
+// expect
+{IDENT:"dfgsdfgbsdcvvbsdf_asdsdfsdfgbhsdfgsdf",OP:"=",IDENT:"aasdasdfvdcfhbdf_asdsdfgsdfg",}

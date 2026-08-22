@@ -2,25 +2,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "interpreter.h"
 
-// Values
-
-typedef enum {
-    VAL_INT,
-    VAL_BOOL,
-} ValueType;
-
-typedef struct {
-    ValueType type;
-    union {
-        int i;
-        int b;
-    } data;
-} Value;
 
 int unwrap_int(const Value* v) {
     if(v->type != VAL_INT){
-        printf("ERROR: unwrap_int on a non int value");
+        printf("ERROR: unwrap_int on a non int value\n");
         exit(EXIT_FAILURE);
     }
     return v->data.i;
@@ -28,107 +15,21 @@ int unwrap_int(const Value* v) {
 
 int unwrap_bool(const Value* v) {
     if(v->type != VAL_BOOL){
-        printf("ERROR: unwrap_bool on a non bool value");
+        printf("ERROR: unwrap_bool on a non bool value\n");
         exit(EXIT_FAILURE);
     }
 
 
     if(v->data.b != 0 && v->data.b != 1){
-        printf("ERROR: bool has a non 0/1 value");
+        printf("ERROR: bool has a non 0/1 value\n");
         exit(EXIT_FAILURE);
     }
 
     return v->data.b;
 }
 
-// Expressions
-
-
-typedef enum {
-    UNARY_NEG,
-    UNARY_NOT,
-} UnaryOp;
-
-typedef enum {
-    BINARY_ADD,
-    BINARY_SUB,
-    BINARY_MUL,
-    BINARY_DIV,
-    BINARY_LT,
-    BINARY_LE,
-    BINARY_GT,
-    BINARY_GE,
-    BINARY_EQ,
-    BINARY_NE,
-} BinaryOp;
-
-typedef enum {
-    EXPR_INT,
-    EXPR_BOOL,
-    EXPR_VAR,
-    EXPR_UNARY,
-    EXPR_BINARY
-} ExprType;
-
-typedef struct e Expr;
-
-typedef struct e {
-    ExprType type;
-    union {
-        int i;
-        int b;
-        char* var;
-        union {UnaryOp unaryOp; Expr* expr;} unary;
-        union {Expr* lexpr; BinaryOp binaryOp; Expr* rexpr;} binary;
-    } data;
-} Expr;
-
-// Instead of using an AST structure, we are using a recursive expression struct
-// which means that it contains other expressions (look at unary and
-// binary unions), also we will need to free the expression *recursively*
-
-
-// Statements
-
-typedef struct {
-    union {char* name; Expr* expr;} assign;
-    union {char* label;} jump;
-    union {char* label; Expr* cond;} ifjump;
-    union {char* name;} print;
-    union {Expr* expr;} sleep;
-} Stmt;
-
-// Lexer
-
-typedef enum {
-    TOKEN_INT,
-    TOKEN_IDENT,
-    TOKEN_BOOL,
-    TOKEN_OP,
-    TOKEN_LPAREN,
-    TOKEN_RPAREN,
-    TOKEN_EOF,
-} TokenType;
-
-typedef struct {
-    TokenType type;
-    union {
-        int i;
-        char* ident;
-        int b;
-        char* op;
-    } data;
-} Token;
-
-typedef struct {
-    int pos;
-    int len;
-    char chars[];
-} Lexer;
-
 // Since we are simply assigning memory to the lexer struct,
 // a simple free is sufficient to completely destroy the lexer
-
 Lexer* new_lexer(char* src) {
     int len = strlen(src);
     Lexer* lexer = malloc(sizeof(Lexer) + len + 1);
@@ -136,6 +37,14 @@ Lexer* new_lexer(char* src) {
     lexer->len = len;
     memcpy(lexer->chars, src, len + 1);
     return lexer;
+}
+
+void free_lexer(Lexer* l) {
+    if(l == NULL){
+        printf("ERROR: Tried freeing lexer but failed..\n");
+        exit(EXIT_FAILURE);
+    }
+    free(l);
 }
 
 
@@ -265,40 +174,61 @@ Token* next_token(Lexer* lexer) {
     }
 }
 
-
-typedef struct {
-    Lexer* lexer;
-    Token* current;
-} Parser;
-
-Parser* new_parser(char* src) {
+Parser* new_parser(Lexer* lexer) {
     Parser* parser = calloc(1, sizeof(Parser));
-    Lexer* lexer = new_lexer(src);
     Token* token = next_token(lexer);
     parser->lexer = lexer;
     parser->current = token;
     return parser;
 }
 
-int delete_parser(Parser* parser) {
-    if(!parser) {
-        return -1;
+void free_parser(Parser* parser) {
+    if(parser == NULL){
+        printf("ERROR: Tried freeing parser but failed..\n");
+        exit(EXIT_FAILURE);
     }
     free(parser->lexer);
     free(parser->current);
     free(parser);
-    return 0;
 }
 
 void bump_parser(Parser* parser) {
     parser->current = next_token(parser->lexer);
 }
 
-int evaluate_precedence(Token* token);
+int evaluate_precedence(Token* token) {
+    if(token == NULL){
+        return 1;
+    }
+    if(token->type != TOKEN_OP){
+        return 1;
+    }
+    if(
+        strcmp(token->data.op, "==") == 0 ||
+        strcmp(token->data.op, "!=") == 0 ||
+        strcmp(token->data.op, ">=") == 0 ||
+        strcmp(token->data.op, ">") == 0 ||
+        strcmp(token->data.op, "<=") == 0 ||
+        strcmp(token->data.op, "<") == 0
+    ) {
+        return 1;
+    } else if (
+        strcmp(token->data.op, "+") == 0 ||
+        strcmp(token->data.op, "-") == 0
+    ) {
+        return 2;
+    } else if (
+        strcmp(token->data.op, "*") == 0 ||
+        strcmp(token->data.op, "/") == 0
+    ) {
+        return 3;
+    } else {
+        printf("This code is never supposed to execute!!!");
+        exit(EXIT_FAILURE);
+    }
+}
+
 Expr* parse_expr(Parser* parser);
-
-
-
 Expr* parse_precedence(Parser* parser, int min_bp) {
     Expr* lhs;
     Token *curr = parser->current;
@@ -400,46 +330,7 @@ Expr* parse_precedence(Parser* parser, int min_bp) {
     return lhs;
 }
 
-int evaluate_precedence(Token* token) {
-    if(token == NULL){
-        return 1;
-    }
-    if(token->type != TOKEN_OP){
-        return 1;
-    }
-    if(
-        strcmp(token->data.op, "==") == 0 ||
-        strcmp(token->data.op, "!=") == 0 ||
-        strcmp(token->data.op, ">=") == 0 ||
-        strcmp(token->data.op, ">") == 0 ||
-        strcmp(token->data.op, "<=") == 0 ||
-        strcmp(token->data.op, "<") == 0
-    ) {
-        return 1;
-    } else if (
-        strcmp(token->data.op, "+") == 0 ||
-        strcmp(token->data.op, "-") == 0
-    ) {
-        return 2;
-    } else if (
-        strcmp(token->data.op, "*") == 0 ||
-        strcmp(token->data.op, "/") == 0
-    ) {
-        return 3;
-    } else {
-        printf("This code is never supposed to execute!!!");
-        exit(EXIT_FAILURE);
-    }
-}
-
 Expr* parse_expr(Parser* parser) {
     return parse_precedence(parser, 0);
 };
-
-
-// int main() { 
-//     Lexer* lexer = new_lexer("a(3*5)");
-//     print_lexer(lexer);
-//     return 0;
-// }
 

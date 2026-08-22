@@ -36,4 +36,4 @@ int main () {
     return 0;
 }
 
-// w || !gcc main.c -o main && ./main
+// w || !gcc main.c -o main -lraylib && ./main

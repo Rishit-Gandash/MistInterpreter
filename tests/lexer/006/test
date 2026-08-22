@@ -1,0 +1,3 @@
+a = -5
+// expect
+{IDENT:"a",OP:"=",OP:"-",INT:"5",}
