@@ -228,69 +228,58 @@ int evaluate_precedence(Token* token) {
 }
 
 Expr* parse_precedence(Parser* parser, int min_bp) {
-    Expr* lhs;
+    Expr* lhs = calloc(1, sizeof(Expr));
     Token* curr = parser->current;
     switch (curr->type) {
         case TOKEN_INT: {
             int x = curr->data.i;
             bump_parser(parser);
-            Expr *expr = calloc(1, sizeof(Expr));
-            expr->type = EXPR_INT;
-            expr->data.i = x;
-            lhs = expr;
+            lhs->type = EXPR_INT;
+            lhs->data.i = x;
             break;
         }
         case TOKEN_BOOL: {
             int x = curr->data.b;
             bump_parser(parser);
-            Expr *expr = calloc(1, sizeof(Expr));
-            expr->type = EXPR_BOOL;
-            expr->data.b = x;
-            lhs = expr;
+            lhs->type = EXPR_BOOL;
+            lhs->data.b = x;
             break;
         }
         case TOKEN_IDENT: {
             bump_parser(parser);
-            Expr *expr = calloc(1, sizeof(Expr));
-            expr->type = EXPR_VAR;
-            expr->data.var = curr->data.ident;
-            lhs = expr;
+            lhs->type = EXPR_VAR;
+            lhs->data.var = curr->data.ident;
             break;
         }
         case TOKEN_OP: {
-            Expr *expr = calloc(1, sizeof(Expr));
             if(strcmp(curr->data.op, "-") == 0) {
                 bump_parser(parser);
                 Expr* rhs = parse_precedence(parser, 4);
-                Expr *expr = calloc(1, sizeof(Expr));
-                expr->type = EXPR_UNARY;
+                lhs->type = EXPR_UNARY;
                 printf("UNARYT NEG ASSIGNEMNT\n");
-                expr->data.unary->unaryOp = UNARY_NEG;
-                expr->data.unary->expr = rhs;
-                lhs = expr;
+                lhs->data.unary = calloc(1, sizeof(unary));
+                lhs->data.unary->unaryOp = UNARY_NEG;
+                lhs->data.unary->expr = rhs;
             } else if (strcmp(curr->data.op, "!") == 0) {
                 bump_parser(parser);
                 Expr* rhs = parse_precedence(parser, 4);
-                Expr *expr = calloc(1, sizeof(Expr));
-                expr->type = EXPR_UNARY;
-                expr->data.unary->unaryOp = UNARY_NOT;
-                expr->data.unary->expr = rhs;
-                lhs = expr;
-            } else {
-                free(expr);
+                lhs->type = EXPR_UNARY;
+                lhs->data.unary = calloc(1, sizeof(unary));
+                lhs->data.unary->unaryOp = UNARY_NOT;
+                lhs->data.unary->expr = rhs;
             }
+
             break;
         }
         case TOKEN_LPAREN: {
             bump_parser(parser);
 
-            Expr* expr = parse_expr(parser);
+            lhs = parse_expr(parser);
             if(parser->current->type != TOKEN_RPAREN){
                 printf("Unclosed Parentheses");
                 exit(EXIT_FAILURE);
             }
             bump_parser(parser); // WE bump parser since we know we are at a RPAREN token
-            lhs = expr;
             break;
         }
         default: {
@@ -327,6 +316,7 @@ Expr* parse_precedence(Parser* parser, int min_bp) {
         Expr* rhs = parse_precedence(parser, bp+1);
         Expr* new = calloc(1, sizeof(Expr));
         new->type = EXPR_BINARY;
+        new->data.binary = calloc(1, sizeof(binary));
         new->data.binary->lexpr = lhs;
         new->data.binary->rexpr = rhs;
         new->data.binary->binaryOp = op;
@@ -340,31 +330,35 @@ Expr* parse_expr(Parser* parser) {
     return parse_precedence(parser, 0);
 }
 
+// Interpreter 
 
-int main() {
-    Parser* parser = new_parser("a + b");
-    Expr* expr = parse_expr(parser);
-    printf("Done\n");
-    if(expr->type==EXPR_BINARY) {
-        printf("Expression is correctly identified as bin \n");
-        if(expr->data.binary->lexpr->data.var){
-            printf("LHS: %s\n", expr->data.binary->lexpr->data.var);
-        } 
-        if(expr->data.unary->unaryOp == UNARY_NEG) {
-            printf("its unary!!\n");
-        }
-        if(expr->data.binary->rexpr->data.var) {
-            printf("RHS: %s\n", expr->data.binary->rexpr->data.var);
-        }
-    }
-    else if(expr->type == EXPR_BOOL) printf("its bool");
-    else if(expr->type == EXPR_INT) printf("its int");
-    else if(expr->type == EXPR_BINARY) printf("its binary");
-    else if(expr->type == EXPR_VAR){
-        printf("its var\n");
-        printf("%s\n",expr->data.var);
-    }
-    else printf("wtf");
-    return 0;
-}
-
+//
+//
+// int main() {
+//     Parser* parser = new_parser("(1+(1+3)");
+//     Expr* expr = parse_expr(parser);
+//     printf("Done\n");
+//     if(expr->type==EXPR_BINARY) {
+//         printf("Expression is correctly identified as bin \n");
+//         if(expr->data.binary->lexpr->data.i){
+//             printf("LHS: %d\n", expr->data.binary->lexpr->data.i);
+//         } 
+//         if(expr->data.unary->unaryOp == UNARY_NEG) {
+//             printf("its unary!!\n");
+//         }
+//         if(expr->data.binary->rexpr->data.binary->rexpr->data.i) {
+//             printf("LHS: %d\n", expr->data.binary->rexpr->data.binary->lexpr->data.i);
+//             printf("RHS: %d\n", expr->data.binary->rexpr->data.binary->rexpr->data.i);
+//         }
+//     }
+//     else if(expr->type == EXPR_BOOL) printf("its bool");
+//     else if(expr->type == EXPR_INT) printf("its int");
+//     else if(expr->type == EXPR_BINARY) printf("its binary");
+//     else if(expr->type == EXPR_VAR){
+//         printf("its var\n");
+//         printf("%s\n",expr->data.var);
+//     }
+//     else printf("wtf");
+//     return 0;
+// }
+//

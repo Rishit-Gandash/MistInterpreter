@@ -73,6 +73,7 @@ def run_tests(dir):
                 print(f"{t}: {bcolors.RED + fcolors.WHITE}FAIL{bcolors.ENDC}, EXPECTED: {e}, GOT: {out}")
         else:
             print(f"{bcolors.RED + fcolors.WHITE}Program returned with {o.returncode}.{bcolors.ENDC}")
+            print(o.stdout)
     print(f"Tests: {passed}/{len(files)}")
 
 run_tests("./tests/lexer")

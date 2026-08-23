@@ -1,3 +1,4 @@
 a + b * 3
 // expect
-* 3 + a b
++a*b3
+
