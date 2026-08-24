@@ -330,6 +330,37 @@ Expr* parse_expr(Parser* parser) {
     return parse_precedence(parser, 0);
 }
 
+void free_statement(Stmt* statement) {
+    switch(statement->type){
+        case STMT_ASSIGN:
+            free(statement->data.assign);
+            break;
+        case STMT_JUMP:
+            free(statement->data.jump);
+            break;
+        case STMT_IFJUMP:
+            free(statement->data.ifjump);
+            break;
+        case STMT_PRINT:
+            free(statement->data.print);
+            break;
+        case STMT_SLEEP:
+            free(statement->data.sleep);
+            break;
+    }
+    free(statement);
+}
+
+void append_statement(Statements* statements, Stmt* statement) {
+    if(statements->count >= statements->capacity) {
+        if(statements->capacity == 0) statements->capacity = 256;
+        else statements->capacity *= 2;
+        statements->items = realloc(statements->items, statements->capacity * sizeof(*statements->items));
+    }
+    statements->items[statements->count++] = *statement;
+    free_statement(statement);
+}
+
 // Interpreter 
 
 //
