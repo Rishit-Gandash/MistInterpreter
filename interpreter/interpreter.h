@@ -1,9 +1,10 @@
-#include<stdlib.h>
-
 #ifndef INTERPRETER_H_
 #define INTERPRETER_H_
 
+
+
 // Values
+
 typedef enum {
     VAL_INT,
     VAL_BOOL,
@@ -147,6 +148,66 @@ typedef struct {
 
 void free_statement(Stmt* statement);
 void append_statement(Statements* statements, Stmt* statement);
+
+
+// Hashmap 
+
+
+#define HASH_SIZE 4096
+
+
+/* The HashMap struct is a generic key-value hashmap with
+ * max capacity of HASH_SIZE, there is currently no way to
+ * delete elements. Collisions are linearly probed. There
+ * is another hashmap HashMap_v which has the exact same
+ * functions prefixed suffixed with _v, which is for a 
+ * char* - Value pair (from interpreter.h) */
+
+
+unsigned long hash_function(const char* str);
+typedef struct {
+    char* key;
+    int value;
+} Pair;
+
+typedef struct {
+    Pair* items;
+    int count; 
+    int capacity;
+} HashMap;
+
+HashMap* new_hashmap();
+
+
+void append_hashmap(HashMap* map, Pair* pair); 
+
+Pair* search_hashmap(HashMap* map, char* key);
+
+typedef struct {
+    char* key;
+    Value value;
+} Pair_v;
+
+typedef struct {
+    Pair_v* items;
+    int count; 
+    int capacity;
+} HashMap_v;
+
+HashMap_v* new_hashmap_v();
+
+
+void append_hashmap_v(HashMap_v* map, Pair_v* pair);
+
+
+Pair_v* search_hashmap_v(HashMap_v* map, char* key);
+
+
+typedef struct {
+    Statements* stmts;
+    HashMap* labels;
+    HashMap_v* vars;
+} Interpreter;
 
 
 #endif //INTERPRETER_H_

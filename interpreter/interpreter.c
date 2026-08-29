@@ -361,7 +361,182 @@ void append_statement(Statements* statements, Stmt* statement) {
     free_statement(statement);
 }
 
+
+// Label and Statements hashmap logic
+
+unsigned long hash_function(const char* str) {
+    unsigned long hash = 0;
+    int c;
+
+    while ((c = *str++)) {
+        hash = c + (hash << 6) + (hash << 16) - hash;
+    }
+
+    return hash;
+}
+
+
+HashMap* new_hashmap() {
+    HashMap* hashmap = calloc(1, sizeof(HashMap));
+    hashmap->items = calloc(HASH_SIZE, sizeof(Pair));
+    hashmap->capacity = HASH_SIZE;
+    hashmap->count = 0;
+    return hashmap;
+}
+
+void append_hashmap(HashMap* map, Pair* pair) {
+    unsigned long hash = hash_function(pair->key);
+    hash = hash % map->capacity;
+    int seen_end = 0;
+    while(map->items[hash].key){
+        hash++;
+        if(seen_end == 1){
+            printf("No space left broski\n");
+            exit(EXIT_FAILURE);
+        }
+        if(hash >= HASH_SIZE - 1){
+            hash = hash % HASH_SIZE;
+            seen_end = 1;
+        }
+    }
+    map->items[hash] = *pair;
+    free(pair);
+}
+
+Pair* search_hashmap(HashMap* map, char* key) {
+    unsigned long hash = hash_function(key);
+    hash = hash % map->capacity; 
+    if(!map->items[hash].key){
+        printf("No such item\n");
+        return NULL;
+    }
+    int seen_end = 0;
+    while(strcmp(key, map->items[hash].key) != 0)
+    {
+        hash++;
+        if(seen_end == 1){
+            printf("No such item\n");
+            return NULL;
+        }
+        if(hash >= HASH_SIZE - 1){
+            hash = hash % HASH_SIZE;
+            seen_end = 1;
+        }
+    }
+    return &map->items[hash];
+}
+
+
+
+
+
+HashMap_v* new_hashmap_v() {
+    HashMap_v* hashmap = calloc(1, sizeof(HashMap_v));
+    hashmap->items = calloc(HASH_SIZE, sizeof(Pair_v));
+    hashmap->capacity = HASH_SIZE;
+    hashmap->count = 0;
+    return hashmap;
+}
+
+void append_hashmap_v(HashMap_v* map, Pair_v* pair) {
+    unsigned long hash = hash_function(pair->key);
+    hash = hash % map->capacity;
+    int seen_end = 0;
+    while(map->items[hash].key){
+        hash++;
+        if(seen_end == 1){
+            printf("No space left\n");
+            exit(EXIT_FAILURE);
+        }
+        if(hash >= HASH_SIZE - 1){
+            hash = hash % HASH_SIZE;
+            seen_end = 1;
+        }
+    }
+    map->items[hash] = *pair;
+    free(pair);
+}
+
+Pair_v* search_hashmap_v(HashMap_v* map, char* key) {
+    unsigned long hash = hash_function(key);
+    hash = hash % map->capacity; 
+    if(!map->items[hash].key){
+        printf("No such item\n");
+        return NULL;
+    }
+    int seen_end = 0;
+    while(strcmp(key, map->items[hash].key) != 0)
+    {
+        hash++;
+        if(seen_end == 1){
+            printf("No such item\n");
+            return NULL;
+        }
+        if(hash >= HASH_SIZE - 1){
+            hash = hash % HASH_SIZE;
+            seen_end = 1;
+        }
+    }
+    return &map->items[hash];
+}
+
 // Interpreter 
+
+
+typedef struct {
+    char* text; 
+    int current; 
+    int size;
+} Source;
+
+Source* new_source(char* src) {
+    Source* source = malloc(sizeof(Source));
+    source->text = src;
+    source->current = 0;
+    source->size = strlen(src);
+    return source;
+}
+
+char* next_line(Source* src) {
+    if(src->text[src->current] == '\0'){
+        return NULL;
+    }
+    if(src->current >= src->size) {
+        return NULL;
+    }
+    int start = src->current;
+    while(src->text[src->current] != '\n') {
+        src->current++;
+        if(src->current >= src->size) {
+            break;
+        }
+    }
+    char* line = calloc(src->current - start, sizeof(char));
+    memcpy(line, src->text + start, src->current - start);
+    src->current++;
+    return line;
+}
+
+
+
+void from_source(Source* src) {
+    Statements* stmts = malloc(sizeof(Statements)); 
+    HashMap* labels = new_hashmap();
+    char* line = next_line(src);
+    while(line != NULL){
+        printf("%s\n", line);
+        free(line);
+        line = next_line(src);
+    }
+}
+
+int main() {
+    Source* s = new_source("test\ntest\nasdasdasdasd\n");
+    from_source(s);
+    return 0;
+}
+
+
 
 //
 //
