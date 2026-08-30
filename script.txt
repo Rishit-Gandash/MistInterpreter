@@ -1,0 +1,17 @@
+testing
+   testing       
+; this line will be entirely ignored
+  only half ; of this line will be ignored
+
+
+
+
+.label
+
+
+
+sleep 123
+
+sleep(1+2)
+
+print testing

@@ -76,22 +76,22 @@ typedef enum {
 } StmtType;
 
 
-typedef struct {char* name; Expr* expr;} assign;
-typedef struct {char* label;} jump;
-typedef struct {char* label; Expr* cond;} ifjump;
-typedef struct {char* name;} print;
-typedef struct {Expr* expr;} sleep;
+typedef struct {char* name; Expr* expr;} Assign;
+typedef struct {char* label;} Jump;
+typedef struct {char* label; Expr* cond;} Ifjump;
+typedef struct {char* name;} Print;
+typedef struct {Expr* expr;} Sleep;
 
 
 
 typedef struct {
     StmtType type;
     union {
-        assign* assign;
-        jump* jump;
-        ifjump* ifjump;
-        print* print;
-        sleep* sleep;
+        Assign* assign;
+        Jump* jump;
+        Ifjump* ifjump;
+        Print* print;
+        Sleep* sleep;
     } data; // Must be malloc'd at the time of creation
 } Stmt;
 
@@ -209,5 +209,6 @@ typedef struct {
     HashMap_v* vars;
 } Interpreter;
 
+char* file_to_string(char* path);
 
 #endif //INTERPRETER_H_

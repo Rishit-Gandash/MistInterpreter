@@ -5,6 +5,7 @@
 #include "interpreter.h"
 
 
+
 int unwrap_int(const Value* v) {
     if(v->type != VAL_INT){
         printf("ERROR: unwrap_int on a non int value\n");
@@ -358,8 +359,8 @@ void append_statement(Statements* statements, Stmt* statement) {
         statements->items = realloc(statements->items, statements->capacity * sizeof(*statements->items));
     }
     statements->items[statements->count++] = *statement;
-    free_statement(statement);
 }
+
 
 
 // Label and Statements hashmap logic
@@ -400,7 +401,6 @@ void append_hashmap(HashMap* map, Pair* pair) {
         }
     }
     map->items[hash] = *pair;
-    free(pair);
 }
 
 Pair* search_hashmap(HashMap* map, char* key) {
@@ -518,53 +518,218 @@ char* next_line(Source* src) {
 }
 
 
+char *trim(char *str)
+{
+    size_t len = 0;
+    char *frontp = str;
+    char *endp = NULL;
+    
+    if( str == NULL ) { return NULL; }
+    if( str[0] == '\0' ) { return str; }
+    
+    len = strlen(str);
+    endp = str + len;
+    
+    /* Move the front and back pointers to address the first non-whitespace
+     * characters from each end.
+     */
+    while(  *frontp == ' ') { ++frontp; }
+    if( endp != frontp )
+    {
+        while(  *(--endp) == ' ' && endp != frontp ) {}
+    }
+    
+    if(frontp != str && endp == frontp )
+    {
+        // Empty string
+        *((*endp == ' ') ? str : (endp + 1)) = '\0';
+    }
+    else if( str + len - 1 != endp )
+            *(endp + 1) = '\0';
+    
+    /* Shift the string so that it starts at str so that if it's dynamically
+     * allocated, we can still free it on the returned pointer.  Note the reuse
+     * of endp to mean the front of the string buffer now.
+     */
+    endp = str;
+    if( frontp != str )
+    {
+            while( *frontp ) { *endp++ = *frontp++; }
+            *endp = '\0';
+    }
+    
+    return str;
+}
 
-void from_source(Source* src) {
+
+
+char* strip_after_char(char* line, char symbol){
+    int i = 0;
+    int len = strlen(line);
+    char* new_line;
+    while(i <= len){
+        if(line[i] == symbol) {
+            new_line = malloc(i * sizeof(char));
+            memcpy(new_line, line, i);
+            free(line);
+            return new_line;
+        }
+        i++;
+    }
+    return line;
+}
+
+
+int starts_with(const char *str, const char *pre)
+{
+    return strncmp(pre, str, strlen(pre)) == 0;
+}
+
+
+// TODO This returns an interpreter ptr
+void interpreter_from_source(Source* src) {
     Statements* stmts = malloc(sizeof(Statements)); 
+    stmts->items = NULL;
+    stmts->count = 0;
+    stmts->capacity = 0;
     HashMap* labels = new_hashmap();
     char* line = next_line(src);
     while(line != NULL){
+        // Strip comments (start with ;)
+        if(strlen(line) == 0) {
+            free(line);
+            line = next_line(src);
+            continue;
+        } 
+        if(line[0] == ';') {
+            free(line);
+            line = next_line(src);
+            continue;
+        }
+
+
+        line = strip_after_char(line, ';');
+
+        // Trim whitespace 
+
+        line = trim(line);
+
+
+        // Skip empty lines ()
+        if(strlen(line) == 0) {
+            free(line);
+            line = next_line(src);
+            continue;
+        }
+
         printf("%s\n", line);
+
+
+        // Labels
+
+        if(line[0] == '.') {
+            Pair pair = {line, stmts->count};
+            append_hashmap(labels, &pair);
+            Pair* new_pair = search_hashmap(labels, pair.key);
+            printf("Key: %s, Value: %d\n", new_pair->key, new_pair->value);
+            free(line);
+            line = next_line(src);
+            continue;
+        }
+
+        if (starts_with(line, "sleep ")) {
+            // Hacky unsafe behavior (probably)
+
+            line = line + 6; // offset for length for sleep
+            Parser* parser = new_parser(line);
+            line = line - 6;
+            Expr* expr = parse_expr(parser);
+            Stmt* stmt = malloc(sizeof(Stmt));
+            stmt->type = STMT_SLEEP;
+            stmt->data.sleep = malloc(sizeof(Sleep));
+            stmt->data.sleep->expr = expr;
+            append_statement(stmts, stmt);
+            free(line);
+            line = next_line(src);
+            continue;
+        }
+
+        if(starts_with(line, "print ")) {
+            line = line + 6; // offset for length for sleep
+            Stmt* stmt = malloc(sizeof(Stmt));
+            stmt->type = STMT_PRINT;
+            stmt->data.print = malloc(sizeof(Print));
+            memcpy(stmt->data.print->name, line, strlen(line));
+            append_statement(stmts, stmt);
+            line = line - 6;
+            free(line);
+            line = next_line(src);
+            continue;
+        }
+
+        if(starts_with(line, "if ")) {
+            line = line + 3; // offset for length for sleep
+            Stmt* stmt = malloc(sizeof(Stmt));
+            stmt->type = STMT_IFJUMP;
+            stmt->data.print = malloc(sizeof(Print));
+            memcpy(stmt->data.print->name, line, strlen(line));
+            append_statement(stmts, stmt);
+            line = line - 3;
+            free(line);
+            line = next_line(src);
+            continue;
+        }
+
         free(line);
         line = next_line(src);
     }
 }
 
-int main() {
-    Source* s = new_source("test\ntest\nasdasdasdasd\n");
-    from_source(s);
-    return 0;
+
+
+
+
+// File handling
+
+// TODO This returns an interpreter ptr
+
+
+void interpreter_from_file(char* path){
+    char* file_str = file_to_string(path);
+    Source* s = new_source(file_str);
+    interpreter_from_source(s); // this will return in final
+}
+
+char* file_to_string(char* path) {
+    FILE *file;
+    file = fopen(path, "r");
+
+    if(file == NULL) return NULL;
+
+    fseek(file, 0, SEEK_END);
+
+    int length = ftell(file);
+
+    fseek(file, 0, SEEK_SET);
+
+    char* str = malloc((length + 1) * sizeof(char));
+    char c;
+    int i = 0;
+    while((c = fgetc(file)) != EOF){
+        str[i] = c;
+        i++;
+    }
+
+    str[i] = '\0';
+
+    fclose(file);
+    return str;
 }
 
 
+int main() {
+    char* path = "/home/splitzerr/Coding/Projects/MistInterpreter/script.txt";
+    interpreter_from_file(path);
+    return 0;
+}
 
-//
-//
-// int main() {
-//     Parser* parser = new_parser("(1+(1+3)");
-//     Expr* expr = parse_expr(parser);
-//     printf("Done\n");
-//     if(expr->type==EXPR_BINARY) {
-//         printf("Expression is correctly identified as bin \n");
-//         if(expr->data.binary->lexpr->data.i){
-//             printf("LHS: %d\n", expr->data.binary->lexpr->data.i);
-//         } 
-//         if(expr->data.unary->unaryOp == UNARY_NEG) {
-//             printf("its unary!!\n");
-//         }
-//         if(expr->data.binary->rexpr->data.binary->rexpr->data.i) {
-//             printf("LHS: %d\n", expr->data.binary->rexpr->data.binary->lexpr->data.i);
-//             printf("RHS: %d\n", expr->data.binary->rexpr->data.binary->rexpr->data.i);
-//         }
-//     }
-//     else if(expr->type == EXPR_BOOL) printf("its bool");
-//     else if(expr->type == EXPR_INT) printf("its int");
-//     else if(expr->type == EXPR_BINARY) printf("its binary");
-//     else if(expr->type == EXPR_VAR){
-//         printf("its var\n");
-//         printf("%s\n",expr->data.var);
-//     }
-//     else printf("wtf");
-//     return 0;
-// }
-//
