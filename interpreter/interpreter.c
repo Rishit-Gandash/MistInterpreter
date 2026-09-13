@@ -594,6 +594,7 @@ void interpreter_from_source(Source* src) {
     stmts->capacity = 0;
     HashMap* labels = new_hashmap();
     char* line = next_line(src);
+    // TODO: This while loop mallocs exprs without ever freeing them, fix that
     while(line != NULL){
         // Strip comments (start with ;)
         if(strlen(line) == 0) {
@@ -628,7 +629,8 @@ void interpreter_from_source(Source* src) {
         // Labels
 
         if(line[0] == '.') {
-            Pair pair = {line, stmts->count};
+            Pair pair = {line + 1, stmts->count};
+            printf("Label: %s\n", pair.key);
             append_hashmap(labels, &pair);
             Pair* new_pair = search_hashmap(labels, pair.key);
             printf("Key: %s, Value: %d\n", new_pair->key, new_pair->value);
@@ -649,16 +651,18 @@ void interpreter_from_source(Source* src) {
             stmt->data.sleep = malloc(sizeof(Sleep));
             stmt->data.sleep->expr = expr;
             append_statement(stmts, stmt);
+            free_parser(parser);
             free(line);
             line = next_line(src);
             continue;
         }
 
         if(starts_with(line, "print ")) {
-            line = line + 6; // offset for length for sleep
+            line = line + 6; // offset for length for print
             Stmt* stmt = malloc(sizeof(Stmt));
             stmt->type = STMT_PRINT;
             stmt->data.print = malloc(sizeof(Print));
+            stmt->data.print->name = calloc(strlen(line), sizeof(char));
             memcpy(stmt->data.print->name, line, strlen(line));
             append_statement(stmts, stmt);
             line = line - 6;
@@ -667,14 +671,48 @@ void interpreter_from_source(Source* src) {
             continue;
         }
 
+
+        // if (cond) jump (label)
+
         if(starts_with(line, "if ")) {
-            line = line + 3; // offset for length for sleep
+            int i = 3;
+            int cond_size = 0;
+            int n = strlen(line);
+            while(!(line[i] == 'j' && line[i+1] == 'u' && line[i+2] == 'm' && line[i+3] == 'p')){
+                if(line[i+4] == '\0' || i + 4 > n) {
+                    printf("FATAL: if statement doesnt have jump");
+                    exit(EXIT_FAILURE);
+                }
+                cond_size++;
+                i++;
+            }
+            char cond[cond_size];
+            strncpy(cond, line + 3, cond_size);
+            cond[cond_size] = '\0';
+
+            i = i + 4; // (offset for if + condition size) + offset for jump
+            while(line[i] != '.'){
+                if(i >= n) {
+                    printf("FATAL: ifjump statement doesnt have proper label");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }
+            i++; // skip the .
+            char label[n - i];
+            strncpy(label, line + i, n - i);
+
+            Parser* parser = new_parser(cond);
+            Expr* expr = parse_expr(parser);
+            free_parser(parser);
+
             Stmt* stmt = malloc(sizeof(Stmt));
             stmt->type = STMT_IFJUMP;
-            stmt->data.print = malloc(sizeof(Print));
-            memcpy(stmt->data.print->name, line, strlen(line));
+            stmt->data.ifjump = malloc(sizeof(Ifjump));
+            stmt->data.ifjump->label = label;
+            stmt->data.ifjump->cond = expr;
+
             append_statement(stmts, stmt);
-            line = line - 3;
             free(line);
             line = next_line(src);
             continue;
@@ -683,6 +721,7 @@ void interpreter_from_source(Source* src) {
         free(line);
         line = next_line(src);
     }
+    // End of while loop
 }
 
 

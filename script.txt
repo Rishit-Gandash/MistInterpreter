@@ -15,3 +15,5 @@ sleep 123
 sleep(1+2)
 
 print testing
+print hi
+if 1 jump .test
