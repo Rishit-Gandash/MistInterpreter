@@ -596,27 +596,25 @@ void interpreter_from_source(Source* src) {
     char* line = next_line(src);
     // TODO: This while loop mallocs exprs without ever freeing them, fix that
     while(line != NULL){
+
         // Strip comments (start with ;)
         if(strlen(line) == 0) {
             free(line);
             line = next_line(src);
             continue;
-        } 
+        }
         if(line[0] == ';') {
             free(line);
             line = next_line(src);
             continue;
         }
 
-
         line = strip_after_char(line, ';');
 
         // Trim whitespace 
-
         line = trim(line);
 
-
-        // Skip empty lines ()
+        // Skip lines that become empty after trimming
         if(strlen(line) == 0) {
             free(line);
             line = next_line(src);
@@ -629,28 +627,34 @@ void interpreter_from_source(Source* src) {
         // Labels
 
         if(line[0] == '.') {
-            Pair pair = {line + 1, stmts->count};
+
+            Pair* pair = malloc(sizeof(Pair);
+            Pair->key = line + 1; 
+            Pair->value = stmts->count;
+
             printf("Label: %s\n", pair.key);
+
             append_hashmap(labels, &pair);
+
             Pair* new_pair = search_hashmap(labels, pair.key);
             printf("Key: %s, Value: %d\n", new_pair->key, new_pair->value);
+
             free(line);
             line = next_line(src);
             continue;
         }
 
         if (starts_with(line, "sleep ")) {
-            // Hacky unsafe behavior (probably)
 
-            line = line + 6; // offset for length for sleep
-            Parser* parser = new_parser(line);
-            line = line - 6;
+            Parser* parser = new_parser(line + 6);
             Expr* expr = parse_expr(parser);
+
             Stmt* stmt = malloc(sizeof(Stmt));
             stmt->type = STMT_SLEEP;
             stmt->data.sleep = malloc(sizeof(Sleep));
             stmt->data.sleep->expr = expr;
             append_statement(stmts, stmt);
+
             free_parser(parser);
             free(line);
             line = next_line(src);
@@ -659,12 +663,15 @@ void interpreter_from_source(Source* src) {
 
         if(starts_with(line, "print ")) {
             line = line + 6; // offset for length for print
+
             Stmt* stmt = malloc(sizeof(Stmt));
             stmt->type = STMT_PRINT;
             stmt->data.print = malloc(sizeof(Print));
             stmt->data.print->name = calloc(strlen(line), sizeof(char));
+
             memcpy(stmt->data.print->name, line, strlen(line));
             append_statement(stmts, stmt);
+
             line = line - 6;
             free(line);
             line = next_line(src);
@@ -701,6 +708,7 @@ void interpreter_from_source(Source* src) {
             i++; // skip the .
             char label[n - i];
             strncpy(label, line + i, n - i);
+            label[n-i] = '\0';
 
             Parser* parser = new_parser(cond);
             Expr* expr = parse_expr(parser);
@@ -718,8 +726,79 @@ void interpreter_from_source(Source* src) {
             continue;
         }
 
+        if(starts_with(line, "jump ")) {
+            int n = strlen(line);
+            int i = 5;
+            while(line[i] != '.') {
+                if(i >= n) {
+                    printf("FATAL: jump statement has no label\n");
+                    exit(EXIT_FAILURE);
+                }
+                i++;
+            }
+
+            i++; //skip the .
+
+            if(!line[i]) {
+                printf("FATAL: jump statement has no label\n");
+                exit(EXIT_FAILURE);
+            }
+
+            char label[n - i];
+            strncpy(label, line + i, n - i);
+            label[n - i] = '\0';
+
+            Stmt* stmt = malloc(sizeof(Stmt));
+            stmt->type = STMT_JUMP;
+            stmt->data.jump = malloc(sizeof(Jump));
+            stmt->data.jump->label = label;
+
+            printf("label: %s\n", stmt->data.jump->label);
+
+            append_statement(stmts, stmt);
+            free(line);
+            line = next_line(src);
+            continue;
+        }
+
+        int n = strlen(line);
+        int i = 0;
+        while(line[i] != '=') {
+            if(i >= n) {
+                printf("FATAL: Unknown statement type (not one of assign, jump, ifjump, print, or sleep)");
+                exit(EXIT_FAILURE);
+            }
+            i++;
+        }
+
+        // abc = whatever
+        // 01234........n
+        //     ^
+
+        char name[i];
+        strncpy(name, line, i);
+        name[i] = '\0';
+
+        char rhs[n - i];
+        strncpy(rhs, line + i, n - i);
+        rhs[n - i] = '\0';
+
+        Parser* parser = new_parser(rhs);
+        Expr* expr = parse_expr(parser);
+        free_parser(parser);
+        free(rhs);
+
+        Stmt* stmt = malloc(sizeof(Stmt));
+        stmt->type = STMT_ASSIGN;
+        stmt->data.assign = malloc(sizeof(Assign));
+        stmt->data.assign->name = name;
+        stmt->data.assign->expr = expr;
+
+
+        append_statement(stmts, stmt);
         free(line);
         line = next_line(src);
+        continue;
     }
     // End of while loop
 }
@@ -736,6 +815,7 @@ void interpreter_from_source(Source* src) {
 void interpreter_from_file(char* path){
     char* file_str = file_to_string(path);
     Source* s = new_source(file_str);
+    // TODO: the above memory is assigned but never freed
     interpreter_from_source(s); // this will return in final
 }
 
@@ -766,9 +846,9 @@ char* file_to_string(char* path) {
 }
 
 
-int main() {
-    char* path = "/home/splitzerr/Coding/Projects/MistInterpreter/script.txt";
-    interpreter_from_file(path);
-    return 0;
-}
+// int main() {
+//     char* path = "../script.txt";
+//     interpreter_from_file(path);
+//     return 0;
+// }
 
