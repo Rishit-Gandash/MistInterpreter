@@ -223,7 +223,7 @@ int evaluate_precedence(Token* token) {
     ) {
         return 3;
     } else {
-        printf("This code is never supposed to execute!!!");
+        printf("This code is never supposed to execute!!!\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -628,15 +628,15 @@ void interpreter_from_source(Source* src) {
 
         if(line[0] == '.') {
 
-            Pair* pair = malloc(sizeof(Pair);
-            Pair->key = line + 1; 
-            Pair->value = stmts->count;
+            Pair* pair = malloc(sizeof(Pair));
+            pair->key = line + 1; 
+            pair->value = stmts->count;
 
-            printf("Label: %s\n", pair.key);
+            printf("Label: %s\n", pair->key);
 
-            append_hashmap(labels, &pair);
+            append_hashmap(labels, pair);
 
-            Pair* new_pair = search_hashmap(labels, pair.key);
+            Pair* new_pair = search_hashmap(labels, pair->key);
             printf("Key: %s, Value: %d\n", new_pair->key, new_pair->value);
 
             free(line);
@@ -783,10 +783,11 @@ void interpreter_from_source(Source* src) {
         strncpy(rhs, line + i, n - i);
         rhs[n - i] = '\0';
 
+        printf("name: %s rhs: %s\n", name, rhs);
+
         Parser* parser = new_parser(rhs);
         Expr* expr = parse_expr(parser);
         free_parser(parser);
-        free(rhs);
 
         Stmt* stmt = malloc(sizeof(Stmt));
         stmt->type = STMT_ASSIGN;
@@ -851,4 +852,4 @@ char* file_to_string(char* path) {
 //     interpreter_from_file(path);
 //     return 0;
 // }
-
+//

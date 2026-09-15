@@ -1,7 +1,5 @@
-testing
-   testing       
 ; this line will be entirely ignored
-  only half ; of this line will be ignored
+a = 5 ; of this line will be ignored
 
 
 
@@ -17,3 +15,6 @@ sleep(1+2)
 print testing
 print hi
 if 1 jump .test
+jump .test
+
+a = b
