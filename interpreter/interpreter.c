@@ -223,7 +223,7 @@ int evaluate_precedence(Token* token) {
     ) {
         return 3;
     } else {
-        printf("This code is never supposed to execute!!!\n");
+        printf("This code isnt supposed to execute");
         exit(EXIT_FAILURE);
     }
 }
@@ -586,8 +586,7 @@ int starts_with(const char *str, const char *pre)
 }
 
 
-// TODO This returns an interpreter ptr
-void interpreter_from_source(Source* src) {
+Interpreter* new_interpreter_from_source(Source* src) {
     Statements* stmts = malloc(sizeof(Statements)); 
     stmts->items = NULL;
     stmts->count = 0;
@@ -710,6 +709,8 @@ void interpreter_from_source(Source* src) {
             strncpy(label, line + i, n - i);
             label[n-i] = '\0';
 
+            printf("cond: %s, label: %s\n", cond, label);
+
             Parser* parser = new_parser(cond);
             Expr* expr = parse_expr(parser);
             free_parser(parser);
@@ -771,6 +772,7 @@ void interpreter_from_source(Source* src) {
             i++;
         }
 
+
         // abc = whatever
         // 01234........n
         //     ^
@@ -778,6 +780,9 @@ void interpreter_from_source(Source* src) {
         char name[i];
         strncpy(name, line, i);
         name[i] = '\0';
+
+
+        i++; // pass the = 
 
         char rhs[n - i];
         strncpy(rhs, line + i, n - i);
@@ -802,22 +807,35 @@ void interpreter_from_source(Source* src) {
         continue;
     }
     // End of while loop
+
+    free(line);
+
+    Interpreter* interpreter = new_interpreter(stmts, labels);
+    return interpreter;
 }
 
-
+Interpreter* new_interpreter(Statements *stmts, HashMap *labels) {
+    Interpreter* interpreter = malloc(sizeof(Interpreter));
+    interpreter->stmts = stmts;
+    interpreter->labels = labels;
+    interpreter->vars = new_hashmap_v();
+    return interpreter;
+}
 
 
 
 // File handling
 
-// TODO This returns an interpreter ptr
-
-
-void interpreter_from_file(char* path){
+Interpreter* new_interpreter_from_file(char* path){
     char* file_str = file_to_string(path);
     Source* s = new_source(file_str);
-    // TODO: the above memory is assigned but never freed
-    interpreter_from_source(s); // this will return in final
+
+    Interpreter* interpreter = new_interpreter_from_source(s);
+
+    free(s);
+    free(file_str);
+
+    return interpreter;
 }
 
 char* file_to_string(char* path) {
@@ -847,9 +865,9 @@ char* file_to_string(char* path) {
 }
 
 
-// int main() {
-//     char* path = "../script.txt";
-//     interpreter_from_file(path);
-//     return 0;
-// }
-//
+int main() {
+    char* path = "../script.txt";
+    new_interpreter_from_file(path);
+    return 0;
+}
+

@@ -209,6 +209,10 @@ typedef struct {
     HashMap_v* vars;
 } Interpreter;
 
+Interpreter* new_interpreter(Statements* stmts, HashMap* labels);
+
 char* file_to_string(char* path);
+
+
 
 #endif //INTERPRETER_H_
