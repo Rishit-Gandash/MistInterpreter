@@ -213,6 +213,7 @@ Interpreter* new_interpreter(Statements* stmts, HashMap* labels);
 
 char* file_to_string(char* path);
 
+int lookup_label(Interpreter* interpreter, char* label);
 
 
 #endif //INTERPRETER_H_

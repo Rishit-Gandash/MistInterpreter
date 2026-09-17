@@ -1,5 +1,6 @@
 #include <inttypes.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include "interpreter.h"
@@ -407,15 +408,14 @@ Pair* search_hashmap(HashMap* map, char* key) {
     unsigned long hash = hash_function(key);
     hash = hash % map->capacity; 
     if(!map->items[hash].key){
-        printf("No such item\n");
         return NULL;
     }
     int seen_end = 0;
+
     while(strcmp(key, map->items[hash].key) != 0)
     {
         hash++;
         if(seen_end == 1){
-            printf("No such item\n");
             return NULL;
         }
         if(hash >= HASH_SIZE - 1){
@@ -442,7 +442,13 @@ void append_hashmap_v(HashMap_v* map, Pair_v* pair) {
     unsigned long hash = hash_function(pair->key);
     hash = hash % map->capacity;
     int seen_end = 0;
+
     while(map->items[hash].key){
+        if(strcmp(map->items[hash].key, pair->key) == 0){
+            map->items[hash].value = pair->value;
+            free(pair);
+            return;
+        }
         hash++;
         if(seen_end == 1){
             printf("No space left\n");
@@ -461,7 +467,6 @@ Pair_v* search_hashmap_v(HashMap_v* map, char* key) {
     unsigned long hash = hash_function(key);
     hash = hash % map->capacity; 
     if(!map->items[hash].key){
-        printf("No such item\n");
         return NULL;
     }
     int seen_end = 0;
@@ -469,7 +474,6 @@ Pair_v* search_hashmap_v(HashMap_v* map, char* key) {
     {
         hash++;
         if(seen_end == 1){
-            printf("No such item\n");
             return NULL;
         }
         if(hash >= HASH_SIZE - 1){
@@ -511,8 +515,10 @@ char* next_line(Source* src) {
             break;
         }
     }
-    char* line = calloc(src->current - start, sizeof(char));
+    int len = src->current - start;
+    char* line = calloc(len + 1, sizeof(char));
     memcpy(line, src->text + start, src->current - start);
+    line[len] = '\0';
     src->current++;
     return line;
 }
@@ -569,8 +575,9 @@ char* strip_after_char(char* line, char symbol){
     char* new_line;
     while(i <= len){
         if(line[i] == symbol) {
-            new_line = malloc(i * sizeof(char));
+            new_line = calloc(i + 1 ,sizeof(char));
             memcpy(new_line, line, i);
+            new_line[i] = '\0';
             free(line);
             return new_line;
         }
@@ -627,8 +634,11 @@ Interpreter* new_interpreter_from_source(Source* src) {
 
         if(line[0] == '.') {
 
+            int n = strlen(line);
             Pair* pair = malloc(sizeof(Pair));
-            pair->key = line + 1; 
+            pair->key = calloc(n - 1 + 1, sizeof(char)); 
+            strncpy(pair->key, line + 1, n - 1);
+            pair->key[n - 1] = '\0';
             pair->value = stmts->count;
 
             printf("Label: %s\n", pair->key);
@@ -666,7 +676,7 @@ Interpreter* new_interpreter_from_source(Source* src) {
             Stmt* stmt = malloc(sizeof(Stmt));
             stmt->type = STMT_PRINT;
             stmt->data.print = malloc(sizeof(Print));
-            stmt->data.print->name = calloc(strlen(line), sizeof(char));
+            stmt->data.print->name = calloc(strlen(line) + 1, sizeof(char));
 
             memcpy(stmt->data.print->name, line, strlen(line));
             append_statement(stmts, stmt);
@@ -705,7 +715,7 @@ Interpreter* new_interpreter_from_source(Source* src) {
                 i++;
             }
             i++; // skip the .
-            char label[n - i];
+            char* label = calloc(n - i, sizeof(char));
             strncpy(label, line + i, n - i);
             label[n-i] = '\0';
 
@@ -718,7 +728,7 @@ Interpreter* new_interpreter_from_source(Source* src) {
             Stmt* stmt = malloc(sizeof(Stmt));
             stmt->type = STMT_IFJUMP;
             stmt->data.ifjump = malloc(sizeof(Ifjump));
-            stmt->data.ifjump->label = label;
+            stmt->data.ifjump->label = trim(label);
             stmt->data.ifjump->cond = expr;
 
             append_statement(stmts, stmt);
@@ -745,14 +755,14 @@ Interpreter* new_interpreter_from_source(Source* src) {
                 exit(EXIT_FAILURE);
             }
 
-            char label[n - i];
+            char* label = calloc(n - i, sizeof(char));
             strncpy(label, line + i, n - i);
             label[n - i] = '\0';
 
             Stmt* stmt = malloc(sizeof(Stmt));
             stmt->type = STMT_JUMP;
             stmt->data.jump = malloc(sizeof(Jump));
-            stmt->data.jump->label = label;
+            stmt->data.jump->label = trim(label);
 
             printf("label: %s\n", stmt->data.jump->label);
 
@@ -777,14 +787,14 @@ Interpreter* new_interpreter_from_source(Source* src) {
         // 01234........n
         //     ^
 
-        char name[i];
+        char* name = calloc(i + 1, sizeof(char));
         strncpy(name, line, i);
         name[i] = '\0';
 
 
         i++; // pass the = 
 
-        char rhs[n - i];
+        char* rhs = calloc(n - i + 1, sizeof(char));
         strncpy(rhs, line + i, n - i);
         rhs[n - i] = '\0';
 
@@ -793,11 +803,12 @@ Interpreter* new_interpreter_from_source(Source* src) {
         Parser* parser = new_parser(rhs);
         Expr* expr = parse_expr(parser);
         free_parser(parser);
+        free(rhs);
 
         Stmt* stmt = malloc(sizeof(Stmt));
         stmt->type = STMT_ASSIGN;
         stmt->data.assign = malloc(sizeof(Assign));
-        stmt->data.assign->name = name;
+        stmt->data.assign->name = trim(name);
         stmt->data.assign->expr = expr;
 
 
@@ -820,6 +831,245 @@ Interpreter* new_interpreter(Statements *stmts, HashMap *labels) {
     interpreter->labels = labels;
     interpreter->vars = new_hashmap_v();
     return interpreter;
+}
+
+int lookup_label(Interpreter* interpreter, char* label) {
+    Pair* pair = search_hashmap(interpreter->labels, label);
+    if(pair == NULL) {
+        printf("Unknown Label, exiting program\n");
+        exit(EXIT_FAILURE);
+    }
+    return pair->value;
+}
+
+
+Value eval_expr(Interpreter* interpreter, Expr* expr){
+    switch(expr->type){
+        case EXPR_BOOL:
+        {
+            Value val;
+            val.type = VAL_BOOL;
+            val.data.b = expr->data.b;
+            return val;
+        }
+        case EXPR_VAR:
+        {
+            Pair_v* pair= search_hashmap_v(interpreter->vars, expr->data.var);
+            if(pair == NULL){
+                printf("Unknown variable name\n");
+                exit(EXIT_FAILURE);
+            }
+
+            return pair->value;
+        }
+        case EXPR_INT:
+        {
+            Value val;
+            val.type = VAL_INT;
+            val.data.i = expr->data.i;
+            return val;
+        }
+        case EXPR_UNARY:
+        {
+            Value rhs = eval_expr(interpreter, expr->data.unary->expr);
+            // potential source of error: eval_expr 
+            // returns a bool type when expecting int
+            if(expr->data.unary->unaryOp == UNARY_NEG){
+                rhs.data.i *= -1;
+                return rhs;
+            }
+            else {
+                rhs.data.b ^= 1; // Flips the bit from 0 to 1 and vice versa
+                return rhs;
+            }
+            printf("This is never supposed to run");
+        }
+        case EXPR_BINARY:
+        {
+            Value lhs = eval_expr(interpreter, expr->data.binary->lexpr);
+            Value rhs = eval_expr(interpreter, expr->data.binary->rexpr);
+            BinaryOp op = expr->data.binary->binaryOp;
+            switch(op){
+                case BINARY_ADD:
+                case BINARY_MUL:
+                case BINARY_SUB:
+                case BINARY_DIV:
+                {
+                    if(lhs.type != VAL_INT || rhs.type != VAL_INT){
+                        printf("Arithmetic requires ints\n");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    if(op == BINARY_ADD){
+                        lhs.data.i += rhs.data.i;
+                        return lhs;
+                    }
+                    else if (op == BINARY_SUB) {
+                        lhs.data.i -= rhs.data.i;
+                        return lhs;
+                    }
+                    else if (op == BINARY_MUL) {
+                        lhs.data.i *= rhs.data.i;
+                        return lhs;
+                    }
+                    else if (op == BINARY_DIV) {
+                        lhs.data.i /= rhs.data.i;
+                        return lhs;
+                    }
+                    else {
+                        printf("Unreachable code\n");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+                case BINARY_LE:
+                case BINARY_LT:
+                case BINARY_GE:
+                case BINARY_GT:
+                {
+                    if(lhs.type != VAL_INT || rhs.type != VAL_INT){
+                        printf("Comparision requires ints\n");
+                        exit(EXIT_FAILURE);
+                    }
+                    Value val;
+                    val.type = VAL_BOOL;
+                    if(op == BINARY_LE){
+                        val.data.b = (lhs.data.i <= rhs.data.i);
+                        return val;
+                    }
+                    if(op == BINARY_LT){
+                        val.data.b = (lhs.data.i < rhs.data.i);
+                        return val;
+                    }
+                    if(op == BINARY_GE){
+                        val.data.b = (lhs.data.i >= rhs.data.i);
+                        return val;
+                    }
+                    if(op == BINARY_GT){
+                        val.data.b = (lhs.data.i > rhs.data.i);
+                        return val;
+                    }
+                }
+                case BINARY_EQ:
+                case BINARY_NE:
+                {
+                    if(rhs.type == lhs.type){
+                        Value val;
+                        val.type = VAL_BOOL;
+                        if(op == BINARY_EQ){
+                            if(rhs.type == VAL_INT){
+                                val.data.b = (rhs.data.i == lhs.data.i); 
+                            }
+                            else {
+                                val.data.b = (rhs.data.b == lhs.data.b);
+                            }
+                        }
+                        else if (op == BINARY_NE){
+                            if(rhs.type == VAL_INT){
+                                val.data.b = (rhs.data.i != lhs.data.i); 
+                            }
+                            else {
+                                val.data.b = (rhs.data.b != lhs.data.b);
+                            }
+                        }
+                        return val;
+                    }
+                    else {
+                        printf("Comparision must be between same types\n");
+                        exit(EXIT_FAILURE);
+                    }
+                }
+            }
+            // End of switch for Binary
+        }
+    }
+    // End of switch
+}
+
+void run_interpreter(Interpreter* inter) {
+    printf("----Start of run interpreter----\n");
+    int inter_pos = 0; // points to the current statement of interpreter
+
+    while(inter_pos >= 0 && inter_pos < inter->stmts->count) {
+        Stmt curr_stmt = inter->stmts->items[inter_pos];
+        switch(curr_stmt.type) {
+            case STMT_ASSIGN:
+            {
+                Value val = eval_expr(inter, curr_stmt.data.assign->expr);
+                Pair_v* pair = malloc(sizeof(Pair_v)); // Freed in the append_hashmap_v fn
+
+                pair->key = (curr_stmt.data.assign->name);
+                pair->value = val;
+                append_hashmap_v(inter->vars, pair);
+                inter_pos += 1;
+                break;
+            }
+            case STMT_JUMP:
+            {
+                Pair* new_pos = search_hashmap(inter->labels, curr_stmt.data.jump->label);
+                if(new_pos == NULL){
+                    printf("Label not found in jump statement \n");
+                    exit(EXIT_FAILURE);
+                }
+                inter_pos = new_pos->value;
+                break;
+            }
+            case STMT_IFJUMP:
+            {
+                Pair* new_pos = search_hashmap(inter->labels, curr_stmt.data.ifjump->label);
+                if(new_pos == NULL){
+                    printf("Label not found in ifjump statement\n");
+                    exit(EXIT_FAILURE);
+                }
+                Value val = eval_expr(inter, curr_stmt.data.ifjump->cond);
+                if(val.type == VAL_BOOL){
+                    if(val.data.b) {
+                        inter_pos = new_pos->value;
+                    } else {
+                        inter_pos += 1;
+                    }
+                } else {
+                    printf("Ifjump condition must be a valid boolean");
+                    exit(EXIT_FAILURE);
+                }
+                break;
+            }
+            case STMT_PRINT:
+            {
+                Pair_v* var = search_hashmap_v(inter->vars, curr_stmt.data.print->name);
+                if(var == NULL){
+                    printf("%s\n", curr_stmt.data.print->name);
+                    inter_pos += 1;
+                    break;
+                }
+                Value val = var->value;
+                if(val.type == VAL_INT){
+                    printf("%d\n", val.data.i);
+                }
+                if(val.type == VAL_BOOL){
+                    if(val.data.b){
+                        printf("true\n");
+                    } else{
+                        printf("false\n");
+                    }
+                }
+                inter_pos += 1;
+                break;
+            }
+            case STMT_SLEEP:
+            {
+                Value val = eval_expr(inter, curr_stmt.data.sleep->expr);
+                if(val.type != VAL_INT){
+                    printf("Sleep requires integer");
+                    exit(EXIT_FAILURE);
+                }
+                int ms = val.data.i;
+                sleep(ms);
+                inter_pos += 1;
+                break;
+            }
+        }
+    }
+    printf("-------script execution successful--------\n");
 }
 
 
@@ -867,7 +1117,8 @@ char* file_to_string(char* path) {
 
 int main() {
     char* path = "../script.txt";
-    new_interpreter_from_file(path);
+    Interpreter* i = new_interpreter_from_file(path);
+    run_interpreter(i);
     return 0;
 }
 
