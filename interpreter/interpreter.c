@@ -702,7 +702,7 @@ Interpreter* new_interpreter_from_source(Source* src) {
                 cond_size++;
                 i++;
             }
-            char cond[cond_size];
+            char cond[cond_size + 1];
             strncpy(cond, line + 3, cond_size);
             cond[cond_size] = '\0';
 
@@ -715,7 +715,7 @@ Interpreter* new_interpreter_from_source(Source* src) {
                 i++;
             }
             i++; // skip the .
-            char* label = calloc(n - i, sizeof(char));
+            char* label = calloc(n - i + 1, sizeof(char));
             strncpy(label, line + i, n - i);
             label[n-i] = '\0';
 
@@ -755,7 +755,7 @@ Interpreter* new_interpreter_from_source(Source* src) {
                 exit(EXIT_FAILURE);
             }
 
-            char* label = calloc(n - i, sizeof(char));
+            char* label = calloc(n - i + 1, sizeof(char));
             strncpy(label, line + i, n - i);
             label[n - i] = '\0';
 
@@ -985,92 +985,136 @@ Value eval_expr(Interpreter* interpreter, Expr* expr){
     // End of switch
 }
 
+void step_interpreter(Interpreter* inter) {
+    int inter_pos = inter->inter_pos;
+    Stmt curr_stmt = inter->stmts->items[inter_pos];
+    switch(curr_stmt.type) {
+        case STMT_ASSIGN:
+        {
+            Value val = eval_expr(inter, curr_stmt.data.assign->expr);
+            Pair_v* pair = malloc(sizeof(Pair_v)); // Freed in the append_hashmap_v fn
+
+            pair->key = (curr_stmt.data.assign->name);
+            pair->value = val;
+            append_hashmap_v(inter->vars, pair);
+            inter_pos += 1;
+            break;
+        }
+        case STMT_JUMP:
+        {
+            Pair* new_pos = search_hashmap(inter->labels, curr_stmt.data.jump->label);
+            if(new_pos == NULL){ 
+                printf("LABEL: %s\n", curr_stmt.data.jump->label);
+                printf("Label not found in jump statement \n");
+                exit(EXIT_FAILURE);
+            }
+            inter_pos = new_pos->value;
+            break;
+        }
+        case STMT_IFJUMP:
+        {
+            Pair* new_pos = search_hashmap(inter->labels, curr_stmt.data.ifjump->label);
+            if(new_pos == NULL){
+                printf("Label not found in ifjump statement\n");
+                exit(EXIT_FAILURE);
+            }
+            Value val = eval_expr(inter, curr_stmt.data.ifjump->cond);
+            if(val.type == VAL_BOOL){
+                if(val.data.b) {
+                    inter_pos = new_pos->value;
+                } else {
+                    inter_pos += 1;
+                }
+            } else {
+                printf("Ifjump condition must be a valid boolean");
+                exit(EXIT_FAILURE);
+            }
+            break;
+        }
+        case STMT_PRINT:
+        {
+            Pair_v* var = search_hashmap_v(inter->vars, curr_stmt.data.print->name);
+            if(var == NULL){
+                printf("%s\n", curr_stmt.data.print->name);
+                inter_pos += 1;
+                break;
+            }
+            Value val = var->value;
+            if(val.type == VAL_INT){
+                printf("%d\n", val.data.i);
+            }
+            if(val.type == VAL_BOOL){
+                if(val.data.b){
+                    printf("true\n");
+                } else{
+                    printf("false\n");
+                }
+            }
+            inter_pos += 1;
+            break;
+        }
+        case STMT_SLEEP:
+        {
+            Value val = eval_expr(inter, curr_stmt.data.sleep->expr);
+            if(val.type != VAL_INT){
+                printf("Sleep requires integer");
+                exit(EXIT_FAILURE);
+            }
+            float ms = (float)val.data.i / 1000;
+            sleep(ms);
+            inter_pos += 1;
+            break;
+        }
+    }
+    // End of switch
+
+    inter->inter_pos = inter_pos;
+    return;
+}
+
 void run_interpreter(Interpreter* inter) {
     printf("----Start of run interpreter----\n");
-    int inter_pos = 0; // points to the current statement of interpreter
 
-    while(inter_pos >= 0 && inter_pos < inter->stmts->count) {
-        Stmt curr_stmt = inter->stmts->items[inter_pos];
-        switch(curr_stmt.type) {
-            case STMT_ASSIGN:
-            {
-                Value val = eval_expr(inter, curr_stmt.data.assign->expr);
-                Pair_v* pair = malloc(sizeof(Pair_v)); // Freed in the append_hashmap_v fn
-
-                pair->key = (curr_stmt.data.assign->name);
-                pair->value = val;
-                append_hashmap_v(inter->vars, pair);
-                inter_pos += 1;
-                break;
-            }
-            case STMT_JUMP:
-            {
-                Pair* new_pos = search_hashmap(inter->labels, curr_stmt.data.jump->label);
-                if(new_pos == NULL){
-                    printf("Label not found in jump statement \n");
-                    exit(EXIT_FAILURE);
-                }
-                inter_pos = new_pos->value;
-                break;
-            }
-            case STMT_IFJUMP:
-            {
-                Pair* new_pos = search_hashmap(inter->labels, curr_stmt.data.ifjump->label);
-                if(new_pos == NULL){
-                    printf("Label not found in ifjump statement\n");
-                    exit(EXIT_FAILURE);
-                }
-                Value val = eval_expr(inter, curr_stmt.data.ifjump->cond);
-                if(val.type == VAL_BOOL){
-                    if(val.data.b) {
-                        inter_pos = new_pos->value;
-                    } else {
-                        inter_pos += 1;
-                    }
-                } else {
-                    printf("Ifjump condition must be a valid boolean");
-                    exit(EXIT_FAILURE);
-                }
-                break;
-            }
-            case STMT_PRINT:
-            {
-                Pair_v* var = search_hashmap_v(inter->vars, curr_stmt.data.print->name);
-                if(var == NULL){
-                    printf("%s\n", curr_stmt.data.print->name);
-                    inter_pos += 1;
-                    break;
-                }
-                Value val = var->value;
-                if(val.type == VAL_INT){
-                    printf("%d\n", val.data.i);
-                }
-                if(val.type == VAL_BOOL){
-                    if(val.data.b){
-                        printf("true\n");
-                    } else{
-                        printf("false\n");
-                    }
-                }
-                inter_pos += 1;
-                break;
-            }
-            case STMT_SLEEP:
-            {
-                Value val = eval_expr(inter, curr_stmt.data.sleep->expr);
-                if(val.type != VAL_INT){
-                    printf("Sleep requires integer");
-                    exit(EXIT_FAILURE);
-                }
-                int ms = val.data.i;
-                sleep(ms);
-                inter_pos += 1;
-                break;
-            }
-        }
+    while(inter->inter_pos >= 0 && inter->inter_pos < inter->stmts->count) {
+        step_interpreter(inter);
     }
     printf("-------script execution successful--------\n");
 }
+
+
+
+void set_var(Interpreter* inter, char* var, int new_val) {
+    Pair_v* pair = search_hashmap_v(inter->vars, var);
+    if(pair == NULL) {
+        printf("Variable not found\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if(pair->value.type != VAL_INT){
+        printf("Variable not integer\n");
+        exit(EXIT_FAILURE);
+    }
+
+    pair->value.data.i = new_val;
+    return;
+}
+
+int get_var(Interpreter* inter, char* var) {
+    Pair_v* pair = search_hashmap_v(inter->vars, var);
+    if(pair == NULL) {
+        return -1;
+    }
+
+    Value val = pair->value;
+    if(val.type != VAL_INT){
+        printf("Variable not integer\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return val.data.i;
+}
+
+
 
 
 
@@ -1081,6 +1125,7 @@ Interpreter* new_interpreter_from_file(char* path){
     Source* s = new_source(file_str);
 
     Interpreter* interpreter = new_interpreter_from_source(s);
+    interpreter->inter_pos = 0;
 
     free(s);
     free(file_str);
@@ -1115,10 +1160,10 @@ char* file_to_string(char* path) {
 }
 
 
-int main() {
-    char* path = "../script.txt";
-    Interpreter* i = new_interpreter_from_file(path);
-    run_interpreter(i);
-    return 0;
-}
-
+// int main() {
+//     char* path = "../script.txt";
+//     Interpreter* i = new_interpreter_from_file(path);
+//     run_interpreter(i);
+//     return 0;
+// }
+//

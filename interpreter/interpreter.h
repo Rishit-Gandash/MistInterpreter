@@ -207,6 +207,7 @@ typedef struct {
     Statements* stmts;
     HashMap* labels;
     HashMap_v* vars;
+    int inter_pos;
 } Interpreter;
 
 Interpreter* new_interpreter(Statements* stmts, HashMap* labels);

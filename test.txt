@@ -1,0 +1,13 @@
+i = 0
+
+.loop
+
+i = i + 2
+
+print i
+
+if (i >= 20) jump .end
+
+jump .loop
+
+.end
