@@ -115,24 +115,3 @@ step_interpreter(interpreter);
 int value = get_var(interpreter, "counter");
 set_var(interpreter, "counter", 42);
 ```
-
-At present these runtime functions are implemented in `interpreter.c` but are
-not all declared in `interpreter.h`; the Raylib host includes the implementation
-file directly. Exporting their declarations and building the implementation as
-a separate object would make this a conventional embeddable C API.
-
-## Current limitations
-
-This is a learning/prototype project and several rough edges are visible in the
-current implementation:
-
-- The runtime is limited to integers and booleans; it has no strings, functions,
-  arrays, or compound boolean operators.
-- The fixed-size, linear-probing variable/label maps have a capacity of 4096
-  entries and do not support deletion.
-- Error handling prints a message and terminates the process; source locations
-  are not reported.
-- The parser and interpreter allocate AST/runtime data without a complete
-  teardown path, so it is best suited to short-lived processes at present.
-- `sleep` converts a millisecond-like expression through `unistd.h`'s
-  second-granularity `sleep`, so sub-second values are currently truncated.
