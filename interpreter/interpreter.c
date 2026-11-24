@@ -1,9 +1,9 @@
-#include <inttypes.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include "interpreter.h"
+#include <inttypes.h>
 
 
 
@@ -1166,4 +1166,4 @@ char* file_to_string(char* path) {
 //     run_interpreter(i);
 //     return 0;
 // }
-//
+

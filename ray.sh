@@ -1,2 +1,2 @@
-gcc main.c -o main -lraylib && ./main
+clang main.c -o main -lraylib && ./main
 
